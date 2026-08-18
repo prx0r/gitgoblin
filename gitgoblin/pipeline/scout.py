@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import traceback
 from datetime import datetime, timezone
 from pathlib import Path
@@ -14,6 +15,10 @@ from gitgoblin.sources.rss import RSSCollector
 
 from .opportunities import OpportunityEngine
 from .signals import SignalEngine
+
+
+SCORING_VERSION = "v1.0"
+SCHEMA_VERSION = "v0.2"
 
 
 class Scout:
@@ -42,6 +47,42 @@ class Scout:
         self.rss = rss or RSSCollector(settings)
         self.ecosystems = ecosystems or EcosystemsCollector(settings)
 
+    def _collect_with_health(self, source: str, collect_fn, *args, **kwargs) -> tuple[list, list]:
+        """Wrap collection with source health tracking."""
+        try:
+            entities, observations = collect_fn(*args, **kwargs)
+            self.store.update_source_health(source, self.profile.id, success=True)
+            return entities, observations
+        except Exception as exc:
+            self.store.update_source_health(source, self.profile.id, success=False, error=str(exc))
+            raise
+
+    def replay(
+        self,
+        sector: str,
+        since: str,
+        until: str | None = None,
+        *,
+        scoring_version: str | None = None,
+    ) -> list:
+        """Deterministic replay: re-run signal detection on historical observations.
+        Returns new signals derived from the time window.
+        """
+        observations = self.store.observations_by_time_window(sector, since, until)
+        if not observations:
+            return []
+
+        settings = self.settings
+        profile = SectorProfile.load(Path(self._config_root) / "sectors" / f"{sector}.yaml") if hasattr(self, '_config_root') else self.profile
+
+        signal_engine = SignalEngine(self.store, settings, profile)
+        signals = signal_engine.detect(include_test=False)
+
+        for signal in signals:
+            self.store.add_signal(signal)
+
+        return signals
+
     def run(
         self,
         seeds: list[str] | None = None,
@@ -60,7 +101,11 @@ class Scout:
             expanded: set[str] = set(seeds)
             for seed in seeds:
                 self.store.add_seed(self.profile.id, seed)
-                entities, observations = self.github.collect(seed, sector=self.profile.id)
+                try:
+                    entities, observations = self._collect_with_health("github", self.github.collect, seed, sector=self.profile.id)
+                except Exception as exc:
+                    log.append({"source": "github", "seed": seed, "error": str(exc)})
+                    continue
                 for entity in entities:
                     self.store.upsert_entity(entity)
                 total += self.store.add_observations(observations)
@@ -76,7 +121,7 @@ class Scout:
                         continue
                     expanded.add(candidate)
                     try:
-                        ents2, obs2 = self.github.collect(candidate, sector=self.profile.id, pages=1)
+                        ents2, obs2 = self._collect_with_health("github", self.github.collect, candidate, sector=self.profile.id, pages=1)
                         for entity in ents2:
                             self.store.upsert_entity(entity)
                         total += self.store.add_observations(obs2)
@@ -87,7 +132,7 @@ class Scout:
             if research:
                 for query in self.profile.arxiv_queries[:3]:
                     try:
-                        entities, observations = self.arxiv.collect(query, sector=self.profile.id)
+                        entities, observations = self._collect_with_health("arxiv", self.arxiv.collect, query, sector=self.profile.id)
                         for entity in entities:
                             self.store.upsert_entity(entity)
                         total += self.store.add_observations(observations)
@@ -95,7 +140,7 @@ class Scout:
                     except Exception as exc:
                         log.append({"source": "arxiv", "query": query, "error": str(exc)})
                     try:
-                        entities, observations = self.openalex.collect(query, sector=self.profile.id, days=45, max_pages=1)
+                        entities, observations = self._collect_with_health("openalex", self.openalex.collect, query, sector=self.profile.id, days=45, max_pages=1)
                         for entity in entities:
                             self.store.upsert_entity(entity)
                         total += self.store.add_observations(observations)
@@ -103,7 +148,7 @@ class Scout:
                     except Exception as exc:
                         log.append({"source": "openalex", "query": query, "error": str(exc)})
                 try:
-                    entities, observations = self.hackernews.collect(self.profile.keywords[:12], sector=self.profile.id, max_items=40)
+                    entities, observations = self._collect_with_health("hackernews", self.hackernews.collect, self.profile.keywords[:12], sector=self.profile.id, max_items=40)
                     for entity in entities:
                         self.store.upsert_entity(entity)
                     total += self.store.add_observations(observations)
@@ -113,7 +158,7 @@ class Scout:
 
                 for feed_url in self.profile.rss_feeds[:3]:
                     try:
-                        entities, observations = self.rss.collect(feed_url, sector=self.profile.id, keywords=self.profile.keywords[:8])
+                        entities, observations = self._collect_with_health("rss", self.rss.collect, feed_url, sector=self.profile.id, keywords=self.profile.keywords[:8])
                         for entity in entities:
                             self.store.upsert_entity(entity)
                         total += self.store.add_observations(observations)
@@ -123,7 +168,7 @@ class Scout:
 
                 for repo_name in self.profile.ecosystems_repos[:5]:
                     try:
-                        entities, observations = self.ecosystems.collect(repo_name, sector=self.profile.id)
+                        entities, observations = self._collect_with_health("ecosystems", self.ecosystems.collect, repo_name, sector=self.profile.id)
                         for entity in entities:
                             self.store.upsert_entity(entity)
                         total += self.store.add_observations(observations)

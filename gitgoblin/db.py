@@ -80,6 +80,63 @@ CREATE TABLE IF NOT EXISTS seeds (
   added_at TEXT NOT NULL,
   PRIMARY KEY (sector, username)
 );
+
+CREATE TABLE IF NOT EXISTS source_cursors (
+  source TEXT NOT NULL,
+  sector TEXT NOT NULL,
+  cursor_key TEXT NOT NULL,
+  cursor_value TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  PRIMARY KEY (source, sector, cursor_key)
+);
+
+CREATE TABLE IF NOT EXISTS source_health (
+  source TEXT NOT NULL,
+  sector TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'UNKNOWN',
+  last_success_at TEXT,
+  last_failure_at TEXT,
+  consecutive_failures INTEGER NOT NULL DEFAULT 0,
+  last_error TEXT,
+  updated_at TEXT NOT NULL,
+  PRIMARY KEY (source, sector)
+);
+
+CREATE TABLE IF NOT EXISTS artifacts (
+  artifact_id TEXT PRIMARY KEY,
+  source TEXT NOT NULL,
+  source_url TEXT NOT NULL,
+  content_type TEXT NOT NULL,
+  content_sha256 TEXT NOT NULL,
+  size_bytes INTEGER NOT NULL,
+  stored_at TEXT NOT NULL,
+  payload_json TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_artifacts_sha ON artifacts(content_sha256);
+
+CREATE TABLE IF NOT EXISTS schema_versions (
+  version TEXT PRIMARY KEY,
+  description TEXT NOT NULL,
+  applied_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS scoring_versions (
+  version TEXT PRIMARY KEY,
+  description TEXT NOT NULL,
+  config_hash TEXT NOT NULL,
+  applied_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS provenance_chain (
+  provenance_id TEXT PRIMARY KEY,
+  observation_id TEXT NOT NULL,
+  parent_provenance_id TEXT,
+  action TEXT NOT NULL,
+  actor TEXT NOT NULL,
+  timestamp TEXT NOT NULL,
+  metadata_json TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_provenance_obs ON provenance_chain(observation_id);
 """
 
 
@@ -222,3 +279,129 @@ class Store:
                 (run.run_id, run.sector, run.status, run.started_at.isoformat(),
                  run.finished_at.isoformat() if run.finished_at else None, run.model_dump_json()),
             )
+
+    def get_cursor(self, source: str, sector: str, cursor_key: str) -> str | None:
+        with self.connect() as conn:
+            row = conn.execute(
+                "SELECT cursor_value FROM source_cursors WHERE source=? AND sector=? AND cursor_key=?",
+                (source, sector, cursor_key),
+            ).fetchone()
+        return row["cursor_value"] if row else None
+
+    def set_cursor(self, source: str, sector: str, cursor_key: str, cursor_value: str) -> None:
+        with self.connect() as conn:
+            conn.execute(
+                """INSERT INTO source_cursors(source,sector,cursor_key,cursor_value,updated_at)
+                VALUES(?,?,?,?,?)
+                ON CONFLICT(source,sector,cursor_key) DO UPDATE SET cursor_value=excluded.cursor_value, updated_at=excluded.updated_at""",
+                (source, sector, cursor_key, cursor_value, datetime.now(timezone.utc).isoformat()),
+            )
+
+    def update_source_health(self, source: str, sector: str, *, success: bool, error: str | None = None) -> None:
+        now = datetime.now(timezone.utc).isoformat()
+        with self.connect() as conn:
+            row = conn.execute(
+                "SELECT consecutive_failures FROM source_health WHERE source=? AND sector=?",
+                (source, sector),
+            ).fetchone()
+            old_failures = row["consecutive_failures"] if row else 0
+            failures = 0 if success else old_failures + 1
+            status = "HEALTHY" if success else "DEGRADED" if failures < 3 else "UNHEALTHY"
+            conn.execute(
+                """INSERT INTO source_health(source,sector,status,last_success_at,last_failure_at,consecutive_failures,last_error,updated_at)
+                VALUES(?,?,?,?,?,?,?,?)
+                ON CONFLICT(source,sector) DO UPDATE SET
+                  status=excluded.status,
+                  last_success_at=CASE WHEN ?='HEALTHY' THEN excluded.last_success_at ELSE last_success_at END,
+                  last_failure_at=CASE WHEN ?!='HEALTHY' THEN excluded.last_failure_at ELSE last_failure_at END,
+                  consecutive_failures=excluded.consecutive_failures,
+                  last_error=excluded.last_error,
+                  updated_at=excluded.updated_at""",
+                (source, sector, status,
+                 now if success else None, now if not success else None,
+                 failures, error, now, status, status),
+            )
+
+    def get_source_health(self, source: str | None = None, sector: str | None = None) -> list[dict]:
+        where, args = [], []
+        if source:
+            where.append("source=?"); args.append(source)
+        if sector:
+            where.append("sector=?"); args.append(sector)
+        sql = "SELECT * FROM source_health"
+        if where:
+            sql += " WHERE " + " AND ".join(where)
+        with self.connect() as conn:
+            return [dict(r) for r in conn.execute(sql, args).fetchall()]
+
+    def store_artifact(self, artifact_id: str, source: str, source_url: str, content_type: str, content_sha256: str, size_bytes: int, payload: dict) -> bool:
+        try:
+            with self.connect() as conn:
+                conn.execute(
+                    """INSERT INTO artifacts(artifact_id,source,source_url,content_type,content_sha256,size_bytes,stored_at,payload_json)
+                    VALUES(?,?,?,?,?,?,?,?)""",
+                    (artifact_id, source, source_url, content_type, content_sha256, size_bytes,
+                     datetime.now(timezone.utc).isoformat(), json.dumps(payload, sort_keys=True)),
+                )
+            return True
+        except sqlite3.IntegrityError:
+            return False
+
+    def get_artifact(self, artifact_id: str) -> dict | None:
+        with self.connect() as conn:
+            row = conn.execute("SELECT payload_json FROM artifacts WHERE artifact_id=?", (artifact_id,)).fetchone()
+        return json.loads(row["payload_json"]) if row else None
+
+    def find_artifact_by_sha(self, sha256: str) -> dict | None:
+        with self.connect() as conn:
+            row = conn.execute("SELECT payload_json FROM artifacts WHERE content_sha256=?", (sha256,)).fetchone()
+        return json.loads(row["payload_json"]) if row else None
+
+    def add_provenance(self, provenance_id: str, observation_id: str, action: str, actor: str, parent_provenance_id: str | None = None, metadata: dict | None = None) -> None:
+        with self.connect() as conn:
+            conn.execute(
+                """INSERT OR IGNORE INTO provenance_chain(provenance_id,observation_id,parent_provenance_id,action,actor,timestamp,metadata_json)
+                VALUES(?,?,?,?,?,?,?)""",
+                (provenance_id, observation_id, parent_provenance_id, action, actor,
+                 datetime.now(timezone.utc).isoformat(), json.dumps(metadata, sort_keys=True) if metadata else None),
+            )
+
+    def get_provenance_chain(self, observation_id: str) -> list[dict]:
+        with self.connect() as conn:
+            return [dict(r) for r in conn.execute(
+                "SELECT * FROM provenance_chain WHERE observation_id=? ORDER BY timestamp ASC",
+                (observation_id,),
+            ).fetchall()]
+
+    def observations_by_time_window(self, sector: str, since: str, until: str | None = None) -> list[Observation]:
+        where = ["sector=?", "occurred_at>=?"]
+        args: list = [sector, since]
+        if until:
+            where.append("occurred_at<=?"); args.append(until)
+        sql = f"SELECT payload_json FROM observations WHERE {' AND '.join(where)} ORDER BY occurred_at ASC"
+        with self.connect() as conn:
+            rows = conn.execute(sql, args).fetchall()
+        return [Observation.model_validate_json(r["payload_json"]) for r in rows]
+
+    def stale_observations(self, sector: str, stale_days: int = 90) -> list[Observation]:
+        cutoff = datetime.now(timezone.utc).isoformat()
+        with self.connect() as conn:
+            rows = conn.execute(
+                """SELECT payload_json FROM observations
+                WHERE sector=? AND is_test_fixture=0
+                AND julianday(?) - julianday(observed_at) > ?
+                ORDER BY observed_at ASC""",
+                (sector, cutoff, stale_days),
+            ).fetchall()
+        return [Observation.model_validate_json(r["payload_json"]) for r in rows]
+
+    def signal_version_stats(self, sector: str | None = None) -> dict:
+        where, args = [], []
+        if sector:
+            where.append("sector=?"); args.append(sector)
+        sql = "SELECT COUNT(*) as total, AVG(technical_alpha) as avg_alpha, MAX(detected_at) as latest FROM signals"
+        if where:
+            sql += " WHERE " + " AND ".join(where)
+        with self.connect() as conn:
+            row = conn.execute(sql, args).fetchone()
+        return dict(row) if row else {"total": 0, "avg_alpha": 0, "latest": None}

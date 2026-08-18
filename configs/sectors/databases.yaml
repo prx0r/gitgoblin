@@ -21,11 +21,12 @@ rss_feeds:
   - https://www.postgresql.org/news.rss
   - https://sqlite.org/news.html
 ecosyste.ms_repos:
-  - apple/swift
   - rusqlite/rusqlite
-  - postgresgres/postgres
   - tursodatabase/libsql
   - dqlite/dqlite
+  - tikv/tikv
+  - cockroachdb/cockroach
+  - neondatabase/neon
 expertise_languages: [rust, c++, go, c, java]
 primitive_rules:
   transactional-lazy-replication: [lazy, replication, transaction, strongly consistent, partial replica]

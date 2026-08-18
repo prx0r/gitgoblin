@@ -21,7 +21,7 @@ rss_feeds:
   - https://github.blog/feed/
   - https://devblogs.microsoft.com/feed/
 ecosyste.ms_repos:
-  -vercel/next.js
+  - vercel/next.js
   - denoland/deno
   - rust-lang/rust
   - oven-sh/bun
