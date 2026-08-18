@@ -170,6 +170,21 @@ CREATE TABLE IF NOT EXISTS agent_contexts (
 );
 CREATE INDEX IF NOT EXISTS idx_contexts_type ON agent_contexts(context_type);
 CREATE INDEX IF NOT EXISTS idx_contexts_repo ON agent_contexts(repo);
+
+CREATE TABLE IF NOT EXISTS freshness_policies (
+  claim_kind TEXT PRIMARY KEY,
+  ttl_hours INTEGER NOT NULL,
+  description TEXT NOT NULL DEFAULT ''
+);
+
+CREATE TABLE IF NOT EXISTS negative_observations (
+  observation_id TEXT PRIMARY KEY,
+  query TEXT NOT NULL,
+  sources_searched_json TEXT NOT NULL DEFAULT '[]',
+  searched_at TEXT NOT NULL,
+  expires_at TEXT,
+  conclusion TEXT NOT NULL DEFAULT ''
+);
 """
 
 
@@ -492,3 +507,36 @@ class Store:
         sql += " ORDER BY detected_at DESC"
         with self.connect() as conn:
             return [dict(r) for r in conn.execute(sql, args).fetchall()]
+
+    def set_freshness_policy(self, claim_kind: str, ttl_hours: int, description: str = "") -> None:
+        with self.connect() as conn:
+            conn.execute(
+                "INSERT OR REPLACE INTO freshness_policies(claim_kind,ttl_hours,description) VALUES(?,?,?)",
+                (claim_kind, ttl_hours, description),
+            )
+
+    def get_freshness_policy(self, claim_kind: str) -> int | None:
+        with self.connect() as conn:
+            row = conn.execute("SELECT ttl_hours FROM freshness_policies WHERE claim_kind=?", (claim_kind,)).fetchone()
+        return row["ttl_hours"] if row else None
+
+    def freshness_policies(self) -> list[dict]:
+        with self.connect() as conn:
+            return [dict(r) for r in conn.execute("SELECT * FROM freshness_policies ORDER BY claim_kind").fetchall()]
+
+    def record_negative_observation(self, obs_id: str, query: str, sources: list[str], conclusion: str, ttl_days: int = 30) -> None:
+        from datetime import timedelta
+        expires = (utcnow() + timedelta(days=ttl_days)).isoformat()
+        with self.connect() as conn:
+            conn.execute(
+                "INSERT OR IGNORE INTO negative_observations(observation_id,query,sources_searched_json,searched_at,expires_at,conclusion) VALUES(?,?,?,?,?,?)",
+                (obs_id, query, json.dumps(sources), utcnow().isoformat(), expires, conclusion),
+            )
+
+    def expired_negative_observations(self) -> list[dict]:
+        now = utcnow().isoformat()
+        with self.connect() as conn:
+            return [dict(r) for r in conn.execute(
+                "SELECT * FROM negative_observations WHERE expires_at IS NOT NULL AND expires_at <= ?",
+                (now,),
+            ).fetchall()]
