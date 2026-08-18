@@ -137,6 +137,39 @@ CREATE TABLE IF NOT EXISTS provenance_chain (
   metadata_json TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_provenance_obs ON provenance_chain(observation_id);
+
+CREATE TABLE IF NOT EXISTS mechanisms (
+  mechanism_id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  description TEXT NOT NULL,
+  category TEXT NOT NULL,
+  evidence_files_json TEXT NOT NULL DEFAULT '[]',
+  evidence_snippets_json TEXT NOT NULL DEFAULT '[]',
+  confidence REAL NOT NULL DEFAULT 0,
+  targets_json TEXT NOT NULL DEFAULT '[]',
+  hypothesis TEXT NOT NULL DEFAULT '',
+  source_repo TEXT NOT NULL DEFAULT '',
+  source_commit TEXT NOT NULL DEFAULT '',
+  detected_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_mechanisms_category ON mechanisms(category);
+CREATE INDEX IF NOT EXISTS idx_mechanisms_confidence ON mechanisms(confidence DESC);
+
+CREATE TABLE IF NOT EXISTS agent_contexts (
+  context_id TEXT PRIMARY KEY,
+  file_path TEXT NOT NULL,
+  context_type TEXT NOT NULL,
+  content_hash TEXT NOT NULL,
+  size_bytes INTEGER NOT NULL,
+  title TEXT NOT NULL,
+  summary TEXT NOT NULL,
+  practices_json TEXT NOT NULL DEFAULT '[]',
+  version TEXT NOT NULL DEFAULT '',
+  repo TEXT NOT NULL DEFAULT '',
+  detected_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_contexts_type ON agent_contexts(context_type);
+CREATE INDEX IF NOT EXISTS idx_contexts_repo ON agent_contexts(repo);
 """
 
 
@@ -405,3 +438,57 @@ class Store:
         with self.connect() as conn:
             row = conn.execute(sql, args).fetchone()
         return dict(row) if row else {"total": 0, "avg_alpha": 0, "latest": None}
+
+    def insert_mechanism(self, mechanism_id: str, name: str, description: str, category: str,
+                         evidence_files: list[str], evidence_snippets: list[str], confidence: float,
+                         targets: list[str], hypothesis: str, source_repo: str, source_commit: str) -> bool:
+        try:
+            with self.connect() as conn:
+                conn.execute(
+                    """INSERT INTO mechanisms(mechanism_id,name,description,category,evidence_files_json,
+                    evidence_snippets_json,confidence,targets_json,hypothesis,source_repo,source_commit,detected_at)
+                    VALUES(?,?,?,?,?,?,?,?,?,?,?,?)""",
+                    (mechanism_id, name, description, category, json.dumps(evidence_files),
+                     json.dumps(evidence_snippets), confidence, json.dumps(targets), hypothesis,
+                     source_repo, source_commit, datetime.now(timezone.utc).isoformat()),
+                )
+            return True
+        except sqlite3.IntegrityError:
+            return False
+
+    def mechanisms(self, category: str | None = None, min_confidence: float = 0.0) -> list[dict]:
+        where, args = ["confidence>=?"], [min_confidence]
+        if category:
+            where.append("category=?"); args.append(category)
+        sql = f"SELECT * FROM mechanisms WHERE {' AND '.join(where)} ORDER BY confidence DESC"
+        with self.connect() as conn:
+            return [dict(r) for r in conn.execute(sql, args).fetchall()]
+
+    def insert_agent_context(self, context_id: str, file_path: str, context_type: str,
+                             content_hash: str, size_bytes: int, title: str, summary: str,
+                             practices: list[str], version: str, repo: str) -> bool:
+        try:
+            with self.connect() as conn:
+                conn.execute(
+                    """INSERT INTO agent_contexts(context_id,file_path,context_type,content_hash,
+                    size_bytes,title,summary,practices_json,version,repo,detected_at)
+                    VALUES(?,?,?,?,?,?,?,?,?,?,?)""",
+                    (context_id, file_path, context_type, content_hash, size_bytes, title,
+                     summary, json.dumps(practices), version, repo, datetime.now(timezone.utc).isoformat()),
+                )
+            return True
+        except sqlite3.IntegrityError:
+            return False
+
+    def agent_contexts(self, repo: str | None = None, context_type: str | None = None) -> list[dict]:
+        where, args = [], []
+        if repo:
+            where.append("repo=?"); args.append(repo)
+        if context_type:
+            where.append("context_type=?"); args.append(context_type)
+        sql = "SELECT * FROM agent_contexts"
+        if where:
+            sql += " WHERE " + " AND ".join(where)
+        sql += " ORDER BY detected_at DESC"
+        with self.connect() as conn:
+            return [dict(r) for r in conn.execute(sql, args).fetchall()]

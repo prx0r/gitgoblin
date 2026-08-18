@@ -268,3 +268,94 @@ def test_scoring_version_tracking(store):
                       ("v1.0", "Initial scoring", sha256_json({"test": True}), utcnow().isoformat()))
         row = conn.execute("SELECT * FROM scoring_versions WHERE version='v1.0'").fetchone()
     assert row is not None
+
+
+# --- Mechanism Extraction ---
+
+def test_mechanism_extraction():
+    from gitgoblin.mechanisms import extract_mechanisms
+    files = {
+        "src/main.py": """
+        # Pure deterministic decision core separated from I/O
+        # This module implements deterministic protocol simulation
+        # with reproducible seed-based testing
+        def decide(input):
+            return deterministic_transform(input)
+        """,
+        "tests/test_main.py": """
+        # Differential testing against reference implementation
+        # We compare our output with the oracle
+        def test_differential():
+            assert our_output == reference_output
+        """,
+    }
+    mechanisms = extract_mechanisms(files, repo="test/repo", commit="abc123")
+    assert len(mechanisms) >= 2
+    names = [m.name for m in mechanisms]
+    assert "Deterministic Testing" in names
+    assert "Differential Testing" in names
+
+
+def test_mechanism_extraction_deduplication():
+    from gitgoblin.mechanisms import extract_mechanisms
+    files = {
+        "a.py": "deterministic testing reproducible seed schedule",
+        "b.py": "deterministic testing reproducible seed schedule",
+    }
+    mechanisms = extract_mechanisms(files)
+    assert len(mechanisms) == 1  # deduplicated
+
+
+def test_mechanism_store_insert(store):
+    assert store.insert_mechanism(
+        "mech_1", "Test Mechanism", "A test", "validation",
+        ["file.py"], ["line 1"], 0.8, ["qdw.review"], "hypothesis", "test/repo", "abc"
+    )
+    assert len(store.mechanisms()) == 1
+
+
+def test_mechanism_store_filter(store):
+    store.insert_mechanism("m1", "Mech1", "d", "validation", [], [], 0.9, [], "", "", "")
+    store.insert_mechanism("m2", "Mech2", "d", "state", [], [], 0.5, [], "", "", "")
+    assert len(store.mechanisms(category="validation")) == 1
+    assert len(store.mechanisms(min_confidence=0.8)) == 1
+
+
+# --- Agent Context Mining ---
+
+def test_context_detection():
+    from gitgoblin.agent_context import detect_context_files
+    paths = ["AGENTS.md", "src/main.py", "CLAUDE.md", "docs/ARCHITECTURE.md", "tests/test.py"]
+    contexts = detect_context_files(paths)
+    types = [c["type"] for c in contexts]
+    assert "agents_md" in types
+    assert "claude_md" in types
+    assert "architecture" in types
+
+
+def test_practice_extraction():
+    from gitgoblin.agent_context import extract_practices
+    content = """
+    # Testing Rules
+    Always run pytest before commit.
+    Never use bare except.
+    Must format with black.
+    Rate limit API calls with exponential backoff.
+    """
+    practices = extract_practices(content, "agents_md")
+    assert len(practices) >= 2
+
+
+def test_agent_context_store(store):
+    assert store.insert_agent_context(
+        "ctx_1", "AGENTS.md", "agents_md", "hash123", 1024,
+        "Agent Instructions", "Test context", ["testing(3)", "code_quality(2)"], "v1", "test/repo"
+    )
+    assert len(store.agent_contexts(repo="test/repo")) == 1
+
+
+def test_agent_context_store_filter(store):
+    store.insert_agent_context("c1", "AGENTS.md", "agents_md", "h1", 100, "t", "s", [], "", "r1")
+    store.insert_agent_context("c2", "CLAUDE.md", "claude_md", "h2", 200, "t", "s", [], "", "r2")
+    assert len(store.agent_contexts(repo="r1")) == 1
+    assert len(store.agent_contexts(context_type="claude_md")) == 1
