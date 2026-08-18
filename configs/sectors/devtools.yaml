@@ -17,6 +17,15 @@ arxiv_queries:
   - software engineering agents
   - automated software testing llm agents
   - developer tools artificial intelligence
+rss_feeds:
+  - https://github.blog/feed/
+  - https://devblogs.microsoft.com/feed/
+ecosyste.ms_repos:
+  -vercel/next.js
+  - denoland/deno
+  - rust-lang/rust
+  - oven-sh/bun
+  - tailwindlabs/tailwindcss
 expertise_languages: [rust, go, typescript, python, c++]
 primitive_rules:
   agent-native-dev-environment: [agent, devcontainer, sandbox, worktree, environment]

@@ -93,6 +93,48 @@ def create_app(
         opps_out = [opportunity_to_cuntgoblin(o) for o in store.opportunities(sector, 1000)]
         return {"market_observations": signals_out, "opportunities": opps_out}
 
+    @app.get("/v1/search")
+    def search_entities(q: str, entity_type: str | None = None, sector: str | None = None, limit: int = Query(default=20, ge=1, le=100)) -> list[dict]:
+        results = []
+        seen = set()
+        for o in store.observations(sector=sector):
+            if q.lower() in o.entity_id.lower() or q.lower() in str(o.value).lower():
+                if entity_type and o.entity_type != entity_type:
+                    continue
+                if o.entity_id in seen:
+                    continue
+                seen.add(o.entity_id)
+                entity = store.get_entity(o.entity_id)
+                if entity:
+                    results.append(entity.model_dump(mode="json"))
+            if len(results) >= limit:
+                break
+        return results
+
+    @app.get("/v1/stats")
+    def stats(sector: str | None = None) -> dict:
+        signals = store.signals(sector, 10000)
+        opps = store.opportunities(sector, 10000)
+        return {
+            "sector": sector or "all",
+            "signal_count": len(signals),
+            "opportunity_count": len(opps),
+            "avg_technical_alpha": sum(s.technical_alpha for s in signals) / max(1, len(signals)),
+            "build_count": sum(1 for o in opps if o.decision == "BUILD"),
+            "research_count": sum(1 for o in opps if o.decision == "RESEARCH"),
+            "watch_count": sum(1 for o in opps if o.decision == "WATCH"),
+        }
+
+    @app.get("/v1/sectors")
+    def list_sectors() -> list[dict]:
+        sectors = []
+        sectors_dir = config_root / "sectors"
+        if sectors_dir.exists():
+            for f in sorted(sectors_dir.glob("*.yaml")):
+                profile = SectorProfile.load(f)
+                sectors.append({"id": profile.id, "description": profile.description, "seeds": len(profile.seed_builders)})
+        return sectors
+
     @app.get("/", response_class=HTMLResponse)
     def dashboard() -> str:
         page = Path(__file__).with_name("static") / "index.html"

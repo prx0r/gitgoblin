@@ -17,6 +17,15 @@ arxiv_queries:
   - distributed databases replication
   - local first software databases
   - transactional storage systems
+rss_feeds:
+  - https://www.postgresql.org/news.rss
+  - https://sqlite.org/news.html
+ecosyste.ms_repos:
+  - apple/swift
+  - rusqlite/rusqlite
+  - postgresgres/postgres
+  - tursodatabase/libsql
+  - dqlite/dqlite
 expertise_languages: [rust, c++, go, c, java]
 primitive_rules:
   transactional-lazy-replication: [lazy, replication, transaction, strongly consistent, partial replica]

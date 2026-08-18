@@ -68,6 +68,8 @@ class SectorProfile(BaseModel):
     seed_builders: list[str] = Field(default_factory=list)
     keywords: list[str] = Field(default_factory=list)
     arxiv_queries: list[str] = Field(default_factory=list)
+    rss_feeds: list[str] = Field(default_factory=list)
+    ecosystems_repos: list[str] = Field(default_factory=list)
     expertise_languages: list[str] = Field(default_factory=list)
     primitive_rules: dict[str, list[str]] = Field(default_factory=dict)
 

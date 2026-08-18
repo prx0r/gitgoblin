@@ -9,6 +9,8 @@ from gitgoblin.hashing import sha256_json, stable_id
 from gitgoblin.models import ScanRun
 from gitgoblin.settings import AppSettings, SectorProfile
 from gitgoblin.sources import ArxivCollector, GitHubCollector, HackerNewsCollector, OpenAlexCollector
+from gitgoblin.sources.ecosystems import EcosystemsCollector
+from gitgoblin.sources.rss import RSSCollector
 
 from .opportunities import OpportunityEngine
 from .signals import SignalEngine
@@ -27,6 +29,8 @@ class Scout:
         openalex: OpenAlexCollector | None = None,
         arxiv: ArxivCollector | None = None,
         hackernews: HackerNewsCollector | None = None,
+        rss: RSSCollector | None = None,
+        ecosystems: EcosystemsCollector | None = None,
     ) -> None:
         self.store = store
         self.settings = settings
@@ -35,6 +39,8 @@ class Scout:
         self.openalex = openalex or OpenAlexCollector(settings)
         self.arxiv = arxiv or ArxivCollector(settings)
         self.hackernews = hackernews or HackerNewsCollector(settings)
+        self.rss = rss or RSSCollector(settings)
+        self.ecosystems = ecosystems or EcosystemsCollector(settings)
 
     def run(
         self,
@@ -104,6 +110,26 @@ class Scout:
                     log.append({"source": "hackernews", "observations": len(observations)})
                 except Exception as exc:
                     log.append({"source": "hackernews", "error": str(exc)})
+
+                for feed_url in self.profile.rss_feeds[:3]:
+                    try:
+                        entities, observations = self.rss.collect(feed_url, sector=self.profile.id, keywords=self.profile.keywords[:8])
+                        for entity in entities:
+                            self.store.upsert_entity(entity)
+                        total += self.store.add_observations(observations)
+                        log.append({"source": "rss", "feed": feed_url, "observations": len(observations)})
+                    except Exception as exc:
+                        log.append({"source": "rss", "feed": feed_url, "error": str(exc)})
+
+                for repo_name in self.profile.ecosystems_repos[:5]:
+                    try:
+                        entities, observations = self.ecosystems.collect(repo_name, sector=self.profile.id)
+                        for entity in entities:
+                            self.store.upsert_entity(entity)
+                        total += self.store.add_observations(observations)
+                        log.append({"source": "ecosystems", "repo": repo_name, "observations": len(observations)})
+                    except Exception as exc:
+                        log.append({"source": "ecosystems", "repo": repo_name, "error": str(exc)})
 
             signal_engine = SignalEngine(self.store, self.settings, self.profile)
             signals = signal_engine.detect(include_test=include_test)

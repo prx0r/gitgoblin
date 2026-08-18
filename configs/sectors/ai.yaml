@@ -18,6 +18,16 @@ arxiv_queries:
   - agentic software engineering
   - llm agents tool use
   - autonomous coding agents
+rss_feeds:
+  - https://blog.langchain.dev/rss/
+  - https://openai.com/blog/rss.xml
+  - https://huggingface.co/blog/feed.xml
+ecosyste.ms_repos:
+  - langchain-ai/langchain
+  - openai/openai-python
+  - huggingface/transformers
+  - modelcontextprotocol/python-sdk
+  - anthropics/anthropic-sdk-python
 expertise_languages: [python, rust, typescript, go, c++]
 primitive_rules:
   agent-context-infrastructure: [context, memory, retrieval, checkpoint, cache]
