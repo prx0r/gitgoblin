@@ -1,0 +1,12 @@
+services:
+  gitgoblin:
+    build: .
+    ports:
+      - "8787:8787"
+    environment:
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      OPENALEX_API_KEY: ${OPENALEX_API_KEY:-}
+    volumes:
+      - ./data:/app/data
+      - ./configs:/app/configs:ro
+    restart: unless-stopped

@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "VentureLabMarketObservationCompatibility",
+  "type": "object",
+  "required": ["observation_id", "oracle_id", "entity_id", "metric", "observed_at", "source_family", "evidence"],
+  "properties": {
+    "observation_id": {"type": "string"},
+    "oracle_id": {"type": "string"},
+    "entity_id": {"type": "string"},
+    "metric": {"type": "string"},
+    "value": {},
+    "unit": {"type": ["string", "null"]},
+    "sector": {"type": ["string", "null"]},
+    "source_family": {"type": "string"},
+    "observed_at": {"type": "string"},
+    "evidence": {"type": "object", "required": ["artifact_sha256"]},
+    "quality": {"type": "object"}
+  }
+}

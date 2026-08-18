@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CuntgoblinOpportunityCompatibility",
+  "type": "object",
+  "required": ["opportunity_id", "market_topic_ids", "problem", "miner", "evidence", "scorecard", "decision"],
+  "properties": {
+    "opportunity_id": {"type": "string"},
+    "market_topic_ids": {"type": "array", "items": {"type": "string"}},
+    "problem": {"type": "string"},
+    "miner": {"type": "string"},
+    "evidence": {"type": "array", "items": {"type": "string"}},
+    "scorecard": {"type": "object"},
+    "decision": {"enum": ["BUILD", "RESEARCH", "WATCH", "REJECT"]},
+    "solution_hypotheses": {"type": "array", "items": {"type": "string"}}
+  }
+}

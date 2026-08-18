@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "GitGoblinObservation",
+  "type": "object",
+  "required": ["observation_id", "source", "source_family", "entity_type", "entity_id", "action", "occurred_at", "observed_at", "evidence"],
+  "properties": {
+    "observation_id": {"type": "string"},
+    "source": {"type": "string"},
+    "source_family": {"type": "string"},
+    "entity_type": {"type": "string"},
+    "entity_id": {"type": "string"},
+    "actor_id": {"type": ["string", "null"]},
+    "action": {"type": "string"},
+    "target_id": {"type": ["string", "null"]},
+    "occurred_at": {"type": "string", "format": "date-time"},
+    "observed_at": {"type": "string", "format": "date-time"},
+    "value": {"type": "object"},
+    "tags": {"type": "array", "items": {"type": "string"}},
+    "sector": {"type": ["string", "null"]},
+    "evidence": {
+      "type": "object",
+      "required": ["artifact_sha256", "retrieved_at"],
+      "properties": {
+        "source_url": {"type": ["string", "null"]},
+        "artifact_sha256": {"type": "string"},
+        "retrieved_at": {"type": "string", "format": "date-time"},
+        "source_record_id": {"type": ["string", "null"]}
+      }
+    },
+    "quality": {"type": "object"}
+  }
+}

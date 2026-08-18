@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>GitGoblin</title>
+<style>
+:root{color-scheme:dark;font-family:Inter,ui-sans-serif,system-ui,sans-serif;background:#0c0d10;color:#f5f5f5}
+body{max-width:1180px;margin:0 auto;padding:40px 22px}h1{font-size:44px;margin:0}.sub{color:#a9adb7;margin:8px 0 30px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}.card{background:#15171c;border:1px solid #282b33;border-radius:16px;padding:18px}.score{font-size:34px;font-weight:700}.muted{color:#999fab}.badge{display:inline-block;padding:4px 8px;border:1px solid #3b404b;border-radius:99px;font-size:12px;margin-right:5px}.reason{margin:7px 0}.top{display:flex;align-items:center;justify-content:space-between;gap:12px}button{background:#f2f2f2;color:#111;border:0;border-radius:8px;padding:8px 12px;cursor:pointer}code{color:#b7e4c7}a{color:#c6d7ff}
+</style>
+</head>
+<body>
+<div class="top"><div><h1>GitGoblin</h1><div class="sub">Technical alpha before virality.</div></div><button onclick="load()">Refresh</button></div>
+<div id="status" class="muted"></div><h2>Frontier signals</h2><div id="signals" class="grid"></div><h2>Opportunities</h2><div id="opps" class="grid"></div>
+<script>
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+async function load(){
+  const [h,s,o]=await Promise.all([fetch('/health').then(r=>r.json()),fetch('/v1/signals?limit=30').then(r=>r.json()),fetch('/v1/opportunities?limit=30').then(r=>r.json())]);
+  document.getElementById('status').textContent=`${h.status} · ${s.length} signals · ${o.length} opportunities`;
+  document.getElementById('signals').innerHTML=s.map(x=>`<div class="card"><div class="score">${(x.technical_alpha*100).toFixed(1)}</div><div><code>${esc(x.target_id)}</code></div><p class="muted">confidence ${(x.confidence*100).toFixed(0)}% · ${x.expert_count} experts · ${x.independent_cluster_count} clusters</p>${x.reasons.map(r=>`<div class="reason">${esc(r)}</div>`).join('')}<span class="badge">${esc(x.sector)}</span></div>`).join('')||'<div class="muted">No signals yet. Run a scan.</div>';
+  document.getElementById('opps').innerHTML=o.map(x=>`<div class="card"><span class="badge">${esc(x.decision)}</span><span class="badge">${esc(x.primitive)}</span><h3>${esc(x.title)}</h3><p>${esc(x.problem)}</p><p class="muted">score ${(x.scorecard.total*100).toFixed(1)}</p></div>`).join('')||'<div class="muted">No opportunities yet.</div>';
+}
+load();
+</script>
+</body></html>

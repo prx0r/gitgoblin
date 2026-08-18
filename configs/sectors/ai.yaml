@@ -1,0 +1,24 @@
+id: ai
+description: Agent infrastructure, AI systems, model tooling, inference, evaluation and autonomous software.
+seed_builders: []
+keywords:
+  - agent
+  - llm
+  - inference
+  - mcp
+  - browser
+  - sandbox
+  - durable
+  - eval
+  - verification
+  - memory
+  - orchestration
+  - coding agent
+arxiv_queries:
+  - agentic software engineering
+  - llm agents tool use
+  - autonomous coding agents
+expertise_languages: [python, rust, typescript, go, c++]
+primitive_rules:
+  agent-context-infrastructure: [context, memory, retrieval, checkpoint, cache]
+  agent-tool-reliability: [mcp, tool, reliability, schema, gateway, health]

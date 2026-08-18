@@ -1,0 +1,23 @@
+id: databases
+description: Databases, storage engines, replication, local-first systems and distributed state.
+seed_builders:
+  - carlsverre
+keywords:
+  - database
+  - storage
+  - replication
+  - transaction
+  - local-first
+  - distributed
+  - sqlite
+  - postgres
+  - object storage
+  - sync
+arxiv_queries:
+  - distributed databases replication
+  - local first software databases
+  - transactional storage systems
+expertise_languages: [rust, c++, go, c, java]
+primitive_rules:
+  transactional-lazy-replication: [lazy, replication, transaction, strongly consistent, partial replica]
+  embedded-data-plane: [embedded, sqlite, local, edge, object store]

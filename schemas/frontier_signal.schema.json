@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "GitGoblinFrontierSignal",
+  "type": "object",
+  "required": ["signal_id", "target_id", "sector", "technical_alpha", "confidence", "expert_count", "independent_cluster_count", "novelty", "momentum", "evidence_ids", "detected_at"],
+  "properties": {
+    "signal_id": {"type": "string"},
+    "target_id": {"type": "string"},
+    "sector": {"type": "string"},
+    "technical_alpha": {"type": "number", "minimum": 0, "maximum": 1},
+    "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+    "expert_count": {"type": "integer", "minimum": 0},
+    "independent_cluster_count": {"type": "integer", "minimum": 0},
+    "novelty": {"type": "number", "minimum": 0, "maximum": 1},
+    "momentum": {"type": "number", "minimum": 0, "maximum": 1},
+    "reasons": {"type": "array", "items": {"type": "string"}},
+    "metrics": {"type": "object"},
+    "evidence_ids": {"type": "array", "items": {"type": "string"}},
+    "detected_at": {"type": "string", "format": "date-time"}
+  }
+}

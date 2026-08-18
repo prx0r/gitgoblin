@@ -1,0 +1,23 @@
+id: devtools
+description: Developer tools, coding agents, build systems, testing, observability and deployment infrastructure.
+seed_builders:
+  - carlsverre
+keywords:
+  - developer tool
+  - coding agent
+  - build
+  - test
+  - observability
+  - sandbox
+  - deployment
+  - workflow
+  - compiler
+  - runtime
+arxiv_queries:
+  - software engineering agents
+  - automated software testing llm agents
+  - developer tools artificial intelligence
+expertise_languages: [rust, go, typescript, python, c++]
+primitive_rules:
+  agent-native-dev-environment: [agent, devcontainer, sandbox, worktree, environment]
+  autonomous-testing-infrastructure: [test, fuzz, simulation, verification, deterministic]
