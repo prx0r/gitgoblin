@@ -53,11 +53,15 @@ class ResilientHTTP:
         cache_dir: str | Path = "data/http_cache",
         transport: httpx.BaseTransport | None = None,
         rate_limiter: RateLimiter | None = None,
+        rate_limits: dict[str, float] | None = None,
     ) -> None:
         self.max_retries = max_retries
         self.cache_dir = Path(cache_dir)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.rate_limiter = rate_limiter or RateLimiter()
+        if rate_limits:
+            for source, interval in rate_limits.items():
+                self.rate_limiter.configure(source, interval)
         self.client = httpx.Client(
             timeout=timeout,
             headers={"User-Agent": user_agent, "Accept": "application/json"},

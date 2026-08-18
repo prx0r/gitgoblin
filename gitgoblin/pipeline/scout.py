@@ -5,6 +5,7 @@ import traceback
 from datetime import datetime, timezone
 from pathlib import Path
 
+from gitgoblin.http import RateLimiter
 from gitgoblin.db import Store
 from gitgoblin.hashing import sha256_json, stable_id
 from gitgoblin.models import ScanRun
@@ -40,6 +41,9 @@ class Scout:
         self.store = store
         self.settings = settings
         self.profile = profile
+        self._rate_limiter = RateLimiter()
+        for source, interval in settings.rate_limits.items():
+            self._rate_limiter.configure(source, interval)
         self.github = github or GitHubCollector(settings)
         self.openalex = openalex or OpenAlexCollector(settings)
         self.arxiv = arxiv or ArxivCollector(settings)

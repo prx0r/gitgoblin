@@ -26,6 +26,7 @@ class GitHubCollector:
             user_agent=settings.user_agent,
             timeout=settings.request_timeout_seconds,
             max_retries=settings.max_retries,
+            rate_limits=settings.rate_limits,
         )
         token = settings.github_token()
         self.headers = {

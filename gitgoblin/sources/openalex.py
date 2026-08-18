@@ -19,6 +19,7 @@ class OpenAlexCollector:
             user_agent=settings.user_agent,
             timeout=settings.request_timeout_seconds,
             max_retries=settings.max_retries,
+            rate_limits=settings.rate_limits,
         )
         self.api_key = os.getenv("OPENALEX_API_KEY")
 

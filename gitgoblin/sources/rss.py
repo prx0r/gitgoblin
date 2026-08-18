@@ -20,6 +20,7 @@ class RSSCollector:
             user_agent=settings.user_agent,
             timeout=settings.request_timeout_seconds,
             max_retries=settings.max_retries,
+            rate_limits=settings.rate_limits,
         )
 
     def collect(self, feed_url: str, *, sector: str, keywords: list[str] | None = None) -> tuple[list[Entity], list[Observation]]:

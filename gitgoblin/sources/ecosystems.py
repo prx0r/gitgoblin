@@ -19,6 +19,7 @@ class EcosystemsCollector:
             user_agent=settings.user_agent,
             timeout=settings.request_timeout_seconds,
             max_retries=settings.max_retries,
+            rate_limits=settings.rate_limits,
         )
 
     def collect(self, full_name: str, *, sector: str) -> tuple[list[Entity], list[Observation]]:
