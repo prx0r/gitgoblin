@@ -20,7 +20,7 @@ class HackerNewsCollector:
         )
 
     def collect(self, keywords: list[str], *, sector: str, max_items: int = 80) -> tuple[list[Entity], list[Observation]]:
-        ids = self.http.get_json(f"{self.base_url}/newstories.json", cache_ttl_seconds=120)[:max_items]
+        ids = self.http.get_json(f"{self.base_url}/newstories.json", cache_ttl_seconds=120, source="hackernews")[:max_items]
         words = [k.lower() for k in keywords]
         entities: list[Entity] = []
         observations: list[Observation] = []

@@ -20,7 +20,7 @@ arxiv_queries:
 rss_feeds:
   - https://www.postgresql.org/news.rss
   - https://sqlite.org/news.html
-ecosyste.ms_repos:
+ecosystems_repos:
   - rusqlite/rusqlite
   - tursodatabase/libsql
   - dqlite/dqlite

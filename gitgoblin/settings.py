@@ -49,6 +49,14 @@ class AppSettings(BaseModel):
     max_retries: int = 3
     github: GitHubSettings = Field(default_factory=GitHubSettings)
     scoring: ScoreSettings = Field(default_factory=ScoreSettings)
+    rate_limits: dict[str, float] = Field(default_factory=lambda: {
+        "github": 3.0,       # 1 req per 3s (authenticated: 5000/hr)
+        "openalex": 0.5,     # 1 req per 0.5s (polite pool)
+        "arxiv": 3.5,        # 1 req per 3.5s (3s+ delay required)
+        "hackernews": 1.0,   # 1 req per 1s (be nice)
+        "rss": 30.0,         # 1 req per 30s per feed
+        "ecosystems": 5.0,   # 1 req per 5s (unknown limits)
+    })
 
     @classmethod
     def load(cls, path: str | Path | None = None) -> "AppSettings":

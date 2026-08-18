@@ -36,7 +36,7 @@ class OpenAlexCollector:
         cursor = "*"
         for _ in range(max_pages):
             params["cursor"] = cursor
-            body = self.http.get_json(f"{self.base_url}/works", params=params, cache_ttl_seconds=1800)
+            body = self.http.get_json(f"{self.base_url}/works", params=params, cache_ttl_seconds=1800, source="openalex")
             for work in body.get("results", []):
                 wid = str(work.get("id") or work.get("doi"))
                 if not wid:

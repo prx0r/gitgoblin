@@ -39,14 +39,14 @@ class GitHubCollector:
         pages = pages or self.settings.github.pages_per_seed
         entities: dict[str, Entity] = {}
         observations: list[Observation] = []
-        user = self.http.get_json(f"{API}/users/{username}", headers=self.headers, cache_ttl_seconds=900)
+        user = self.http.get_json(f"{API}/users/{username}", headers=self.headers, cache_ttl_seconds=900, source="github")
         user_id = f"github:user:{user['login'].lower()}"
         entities[user_id] = self._user_entity(user)
         observations.append(self._profile_observation(user, sector))
 
         if self.settings.github.include_following:
             for followed in self.http.paginate_json(
-                f"{API}/users/{username}/following", headers=self.headers, pages=pages
+                f"{API}/users/{username}/following", headers=self.headers, pages=pages, source="github"
             ):
                 fid = f"github:user:{followed['login'].lower()}"
                 entities.setdefault(fid, self._user_entity(followed))
@@ -72,7 +72,7 @@ class GitHubCollector:
             star_headers = dict(self.headers)
             star_headers["Accept"] = "application/vnd.github.star+json"
             for item in self.http.paginate_json(
-                f"{API}/users/{username}/starred", headers=star_headers, pages=pages
+                f"{API}/users/{username}/starred", headers=star_headers, pages=pages, source="github"
             ):
                 repo = item.get("repo", item)
                 if not isinstance(repo, dict) or not repo.get("full_name"):
@@ -101,7 +101,7 @@ class GitHubCollector:
 
         if self.settings.github.include_events:
             for event in self.http.paginate_json(
-                f"{API}/users/{username}/events/public", headers=self.headers, pages=pages
+                f"{API}/users/{username}/events/public", headers=self.headers, pages=pages, source="github"
             ):
                 parsed = self._event_observation(event, sector)
                 if parsed:
@@ -127,6 +127,7 @@ class GitHubCollector:
                 headers=self.headers,
                 params={"sort": "pushed", "direction": "desc"},
                 pages=pages,
+                source="github",
             ):
                 rid = f"github:repo:{repo['full_name'].lower()}"
                 entities[rid] = self._repo_entity(repo)

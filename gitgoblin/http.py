@@ -16,8 +16,29 @@ class HTTPError(RuntimeError):
     pass
 
 
+class RateLimiter:
+    """Per-source rate limiter with token bucket algorithm."""
+
+    def __init__(self) -> None:
+        self._last_call: dict[str, float] = {}
+        self._min_interval: dict[str, float] = {}
+
+    def configure(self, source: str, min_interval: float) -> None:
+        self._min_interval[source] = min_interval
+
+    def wait(self, source: str) -> None:
+        if source not in self._min_interval:
+            return
+        now = time.time()
+        last = self._last_call.get(source, 0)
+        wait_time = self._min_interval[source] - (now - last)
+        if wait_time > 0:
+            time.sleep(wait_time)
+        self._last_call[source] = time.time()
+
+
 class ResilientHTTP:
-    """HTTP client with bounded retries, Retry-After handling and disk GET cache.
+    """HTTP client with bounded retries, Retry-After handling, disk GET cache, and per-source rate limiting.
 
     The cache is deliberately conservative: it is only used when callers pass cache_ttl_seconds.
     Network errors never silently become successful observations.
@@ -31,10 +52,12 @@ class ResilientHTTP:
         max_retries: int = 3,
         cache_dir: str | Path = "data/http_cache",
         transport: httpx.BaseTransport | None = None,
+        rate_limiter: RateLimiter | None = None,
     ) -> None:
         self.max_retries = max_retries
         self.cache_dir = Path(cache_dir)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
+        self.rate_limiter = rate_limiter or RateLimiter()
         self.client = httpx.Client(
             timeout=timeout,
             headers={"User-Agent": user_agent, "Accept": "application/json"},
@@ -56,7 +79,10 @@ class ResilientHTTP:
         params: dict[str, Any] | None = None,
         headers: dict[str, str] | None = None,
         cache_ttl_seconds: float | None = None,
+        source: str | None = None,
     ) -> Any:
+        if source:
+            self.rate_limiter.wait(source)
         cache_path = self._cache_path(url, params)
         if cache_ttl_seconds is not None and cache_path.exists():
             age = time.time() - cache_path.stat().st_mtime
@@ -92,7 +118,10 @@ class ResilientHTTP:
         *,
         params: dict[str, Any] | None = None,
         headers: dict[str, str] | None = None,
+        source: str | None = None,
     ) -> str:
+        if source:
+            self.rate_limiter.wait(source)
         last_error: Exception | None = None
         for attempt in range(self.max_retries + 1):
             try:
@@ -119,12 +148,15 @@ class ResilientHTTP:
         headers: dict[str, str] | None = None,
         pages: int = 1,
         page_size: int = 100,
+        source: str | None = None,
     ) -> Iterable[Any]:
+        if source:
+            self.rate_limiter.wait(source)
         params = dict(params or {})
         params.setdefault("per_page", page_size)
         for page in range(1, pages + 1):
             params["page"] = page
-            body = self.get_json(url, params=params, headers=headers)
+            body = self.get_json(url, params=params, headers=headers, source=source)
             if not isinstance(body, list):
                 raise HTTPError(f"Expected list from {url}, got {type(body).__name__}")
             for item in body:

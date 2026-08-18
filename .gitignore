@@ -13,3 +13,4 @@ build/*.log
 .env
 dist/
 *.egg-info/
+.env

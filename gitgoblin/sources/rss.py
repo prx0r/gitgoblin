@@ -23,7 +23,7 @@ class RSSCollector:
         )
 
     def collect(self, feed_url: str, *, sector: str, keywords: list[str] | None = None) -> tuple[list[Entity], list[Observation]]:
-        text = self.http.get_text(feed_url)
+        text = self.http.get_text(feed_url, source="rss")
         root = ET.fromstring(text)
         keywords = [k.lower() for k in (keywords or [])]
         entries = root.findall(".//item")

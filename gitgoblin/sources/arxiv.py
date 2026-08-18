@@ -29,6 +29,7 @@ class ArxivCollector:
         text = self.http.get_text(
             self.base_url,
             params={"search_query": search, "start": 0, "max_results": max_results, "sortBy": "submittedDate", "sortOrder": "descending"},
+            source="arxiv",
         )
         root = ET.fromstring(text)
         entities: dict[str, Entity] = {}

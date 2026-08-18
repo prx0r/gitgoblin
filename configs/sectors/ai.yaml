@@ -22,7 +22,7 @@ rss_feeds:
   - https://blog.langchain.dev/rss/
   - https://openai.com/blog/rss.xml
   - https://huggingface.co/blog/feed.xml
-ecosyste.ms_repos:
+ecosystems_repos:
   - langchain-ai/langchain
   - openai/openai-python
   - huggingface/transformers

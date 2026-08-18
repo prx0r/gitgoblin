@@ -24,7 +24,7 @@ class EcosystemsCollector:
     def collect(self, full_name: str, *, sector: str) -> tuple[list[Entity], list[Observation]]:
         encoded = quote(full_name, safe="")
         url = f"{self.base_url}/{encoded}"
-        repo = self.http.get_json(url, cache_ttl_seconds=3600)
+        repo = self.http.get_json(url, cache_ttl_seconds=3600, source="ecosystems")
         rid = f"github:repo:{full_name.lower()}"
         entity = Entity(
             entity_id=rid,
