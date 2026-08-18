@@ -1,6 +1,34 @@
 id: ai
 description: Agent infrastructure, AI systems, model tooling, inference, evaluation and autonomous software.
-seed_builders: []
+seed_builders:
+  # Tier 1 — Active Frontier Discoverers
+  - ghuntley
+  - jxnl
+  - simonw
+  - paul-gauthier
+  - lopopolo
+  - VictorTaelin
+  # Tier 2 — Active Creators (New AI Tools)
+  - ShawnPana
+  - ShenSeanChen
+  - Leutenegger
+  - chubbyguan
+  - ruvnet
+  - kerlenton
+  - shlokkhemani
+  - iannuttall
+  - fkiene
+  # Tier 3 — Key Individual Contributors
+  - ishaan-jaff
+  - logan-markewich
+  - jerryjliu
+  - dsp-ant
+  - Kludex
+  # Tier 4 — Infrastructure People
+  - mitchellh
+  - wycats
+  - shanselman
+  - davecheney
 keywords:
   - agent
   - llm
