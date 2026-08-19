@@ -5,7 +5,7 @@
 GitGoblin is designed as both:
 
 1. a standalone frontier-intelligence product; and
-2. a specialized oracle for VentureLab/cuntgoblin.
+2. a specialized oracle for VentureLab/venture-lab.
 
 ## What is implemented
 
@@ -46,8 +46,8 @@ gitgoblin scan databases --seed carlsverre --expand 2
 # Inspect signals
 gitgoblin rank --sector databases
 
-# Export to VentureLab/cuntgoblin
-gitgoblin export --sector databases --out build/cuntgoblin-export.json
+# Export to VentureLab/venture-lab
+gitgoblin export --sector databases --out build/venture-lab-export.json
 
 # Dashboard + API
 gitgoblin serve --host 0.0.0.0 --port 8787
@@ -64,7 +64,7 @@ For GitHub automation, set `GITHUB_TOKEN`; unauthenticated requests have much lo
 - `GET /v1/signals`
 - `GET /v1/opportunities`
 - `GET /v1/entities/{entity_id}`
-- `GET /v1/export/cuntgoblin`
+- `GET /v1/export/venture-lab`
 - `GET /` — compact dashboard
 
 Interactive OpenAPI docs are provided automatically by FastAPI at `/docs`.
